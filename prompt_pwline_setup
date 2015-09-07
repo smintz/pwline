@@ -155,7 +155,7 @@ set_vcs_prompt() {
   zstyle ':vcs_info:*:prompt:*' patch-format  "%p%u"
   zstyle ':vcs_info:*:prompt:*' actionformats "${fmt_branch}${fmt_action}"
   zstyle ':vcs_info:*:prompt:*' branchformat  "%b"
-  zstyle ':vcs_info:*:prompt:*' hgrevformat   "%r"
+  zstyle ':vcs_info:*:prompt:*' hgrevformat   "%h"
   zstyle ':vcs_info:*:prompt:*' formats       "${fmt_branch_dyn}"
   zstyle ':vcs_info:*:prompt:*' nvcsformats   ""
 
