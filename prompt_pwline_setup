@@ -1,0 +1,283 @@
+#
+# My version for powerline prompt
+# Looks best on iTerm2 with dark solarized theme
+#
+# Author:
+#   Shahar Mintz (http://github.com/smintz)
+#
+# Credits:
+#   Geoffrey Grosenbach <boss@topfunky.com>
+#   Sorin Ionescu <sorin.ionescu@gmail.com>
+
+
+function prompt_pwline_help {
+  cat <<EOH
+This powerline prompt is customizable:
+
+  prompt pwline [order:user,host,...] [vcsorder:vcstype,branch] [sep:<seperator char>] [colors:host:blue,white::user:green,white]
+
+available units options (for order:...)
+  - user            - current user
+  - host            - current hostname with unique background color
+  - vcs             - source control information
+  - time            - current clock time in 24h setup
+  - jobs            - number of background jobs
+  - pwd             - current directory name
+  specials:
+  - newline         - creates a new line
+  - lastunit        - used at end of line
+  - status_prompt   - terminates the prompt with red/green for last command retrun code
+
+available vcs units options (for vcsorder:...)
+  - vcstype         - git,hg,svn,bzr
+  - branch          - name of current brnach
+  - revision        - full revision hash
+EOH
+}
+
+function prompt_pwline_preview {
+  prompt_preview_theme 'pwline'
+  print
+  prompt_preview_theme 'pwline' sep:'>'
+}
+
+function unit {
+  echo $1 | sed 's/:/\ /g' | read type side is_first
+  shift
+  if [ "$side" = "left" ] && [ "$is_first" != "true" ]; then
+    local mysep=$POWERLINE_SEPARATOR
+  fi
+  echo $COLOR[$type] | sed 's/,/\ /g' | read bgcolor fgcolor
+  bgcolor=${bgcolor:-green}
+  fgcolor=${fgcolor:-white}
+  text=${@}
+  echo -n "%K{$bgcolor}$mysep%F{$fgcolor} $text %k%F{$bgcolor}"
+}
+function runit {
+  POWERLINE_SEPARATOR=$'\uE0B2'
+  local bgcolor=$1
+  shift
+  local fgcolor=$1
+  shift
+  text=${@}
+  echo -n "%F{$bgcolor}$POWERLINE_SEPARATOR%K{$bgcolor}%F{$fgcolor} $text %k%K{$bgcolor}"
+}
+
+function prompt_pwline_precmd {
+  vcs_info 'prompt'
+  # zle -N zle-line-init
+  # zle -N zle-keymap-select
+}
+
+# function zle-line-init zle-keymap-select {
+#   VICMD=''
+#   case $KEYMAP in
+#     vicmd) VICMD=$(unit blue white NORMAL);;
+#     main|viins) VICMD=$(unit green white INSERT);;
+#   esac
+#   # echo $VICMD
+#   # PS2=$PS1
+#   # echo $VICMD
+#   RPS1=" "$VICMD
+#   RPS2=$RPS1
+#   zle reset-prompt
+# }
+
+set_vcs_prompt() {
+  echo $1 | sed 's/:/\ /g' | read type side is_first
+
+  autoload -Uz vcs_info
+  # autoload -Uz zle
+
+  # Enable VCS systems you use.
+  zstyle ':vcs_info:*' enable bzr git hg svn
+
+  # check-for-changes can be really slow.
+  # You should disable it if you work with large repositories.
+  zstyle ':vcs_info:*:prompt:*' check-for-changes true
+  zstyle ':vcs_info:*:prompt:*' check-for-staged-changes true
+  zstyle ':vcs_info:*:prompt:*' get-bookmarks true
+  zstyle ':vcs_info:*:prompt:*' get-revision true
+  zstyle ':vcs_info:*:prompt:*' use-simple true
+  add-zsh-hook precmd prompt_pwline_precmd
+  # Use extended color pallete if available.
+  if [[ $TERM = *256color* || $TERM = *rxvt* ]]; then
+    __PROMPT_SKWP_COLORS=(
+      "%F{81}"  # turquoise
+      "%F{166}" # orange
+      "%F{135}" # purple
+      "%F{161}" # hotpink
+      "%F{118}" # limegreen
+    )
+  else
+    __PROMPT_SKWP_COLORS=(
+      "%F{cyan}"
+      "%F{yellow}"
+      "%F{magenta}"
+      "%F{red}"
+      "%F{green}"
+    )
+  fi
+
+
+  # Formats:
+  # %b - branchname
+  # %u - unstagedstr (see below)
+  # %c - stagedstr (see below)
+  # %a - action (e.g. rebase-i)
+  # %R - repository path
+  # %S - path in the repository
+  # %n - user
+  # %m - machine hostname
+
+  local fmt_branch="(${__PROMPT_SKWP_COLORS[1]}%b%f%u%c)"
+  local fmt_branch="${__PROMPT_SKWP_COLORS[0]}(%s) %b%f%u%c"
+  local fmt_action="${__PROMPT_SKWP_COLORS[5]}%a%f"
+  local fmt_unstaged="${__PROMPT_SKWP_COLORS[2]} ●%f"
+  local fmt_staged="${__PROMPT_SKWP_COLORS[5]} ●%f"
+
+  fmt_branch_dyn=''
+  for type in $(echo $VCSSEQ | sed 's/,/\ /g'); do
+    # echo $type $side
+    case $type in
+      vcstype)
+        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false %s);;
+      branch)
+        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false %b%c%u);;
+      revision)
+        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false %i);;
+    esac
+  done
+  # echo $fmt_branch_dyn
+
+  zstyle ':vcs_info:*:prompt:*' unstagedstr   "${fmt_unstaged}"
+  zstyle ':vcs_info:*:prompt:*' stagedstr     "${fmt_staged}"
+  zstyle ':vcs_info:*:prompt:*' patch-format  "%p%u"
+  zstyle ':vcs_info:*:prompt:*' actionformats "${fmt_branch}${fmt_action}"
+  zstyle ':vcs_info:*:prompt:*' branchformat  "%b"
+  zstyle ':vcs_info:*:prompt:*' hgrevformat   "%r"
+  zstyle ':vcs_info:*:prompt:*' formats       "${fmt_branch_dyn}"
+  zstyle ':vcs_info:*:prompt:*' nvcsformats   ""
+
+}
+# function prompt_pwline_setup zle-line-init zle-keymap-select {
+function format_prompt {
+  # VICMD=''
+  # case $KEYMAP in
+  #   vicmd) VICMD=$(funit blue white NORMAL);;
+  #   main|viins) VICMD=$(funit green white INSERT);;
+  # esac
+
+  setopt LOCAL_OPTIONS
+  unsetopt XTRACE KSH_ARRAYS
+  prompt_opts=(cr percent subst)
+
+  setopt prompt_subst
+  autoload -Uz add-zsh-hook
+
+  # Default colors
+  typeset -A COLOR
+  COLOR[user]=blue,white
+  COLOR[time]=black,blue
+  COLOR[jobs]=black,yellow
+  COLOR[vcstype]=yellow,white
+  COLOR[branch]=black,cyan
+  COLOR[revision]=white,green
+  hostname_color="$(($(hostname | md5sum | od -b | head -1 | cut -d' ' -f4 ) % 14))"
+  case $hostname_color in
+    8) f_hostname_color=black ;;
+    *) f_hostname_color=white ;;
+  esac
+  COLOR[host]="$hostname_color,$f_hostname_color"
+
+  # Override colors
+  for set_color in $(echo $COLOR_OVERRIDE | sed 's/::/\ /g'); do
+    echo $set_color | sed 's/:/\ /' | read type colors
+    COLOR[$type]=$colors
+  done
+
+  PWRLN_LEFT=""
+  # echo $SEQ
+  side=left
+  for type in $(echo $SEQ | sed 's/,/\ /g'); do
+    case $type in
+      newline)
+        PWRLN_LEFT=$PWRLN_LEFT"
+"
+        FIRST_LEFT=true;;
+      user)
+        PWRLN_LEFT=$PWRLN_LEFT$(unit $type:$side:$FIRST_LEFT %n )
+        FIRST_LEFT='false';;
+      host)
+        # Add Hostname
+        PWRLN_LEFT=$PWRLN_LEFT$(unit $type:$side:$FIRST_LEFT "%m")
+        FIRST_LEFT='';;
+      vcs)
+        set_vcs_prompt $type:$side:$FIRST_LEFT
+        PWRLN_LEFT=$PWRLN_LEFT'${vcs_info_msg_0_}'
+        FIRST_LEFT='';;
+      lastunit)
+        PWRLN_LEFT=$PWRLN_LEFT$POWERLINE_SEPARATOR" "
+        FIRST_LEFT='';;
+      time)
+        PWRLN_LEFT=$PWRLN_LEFT$(unit $type:$side:$FIRST_LEFT "%*" )
+        FIRST_LEFT='';;
+      jobs)
+        PWRLN_LEFT=$PWRLN_LEFT"%(1j.$(unit $type:$side:$FIRST_LEFT $FIRST_LEFT jobs: %j ).)"
+        FIRST_LEFT='';;
+      pwd)
+        PWRLN_LEFT=$PWRLN_LEFT$(unit $type:$side:$FIRST_LEFT "%1~" )
+        FIRST_LEFT='';;
+      status_prompt)
+        status_color=%(?.%K{green}.%K{red})
+        fstatus_color=%(?.%F{green}.%F{red})
+        PWRLN_LEFT=$PWRLN_LEFT"$status_color$POWERLINE_SEPARATOR%F{white} $ $fstatus_color%k"
+        FIRST_LEFT='';;
+    esac
+  done
+
+  PROMPT=$PWRLN_LEFT"%k%f"
+  RPROMPT=''
+  # zle reset-prompt
+}
+
+parse_config() {
+  for term in $@; do
+    echo $term | sed 's/:/\ /' | read key val
+    set_config $key $val
+  done
+}
+
+set_config() {
+  case $1 in
+    sep)
+      POWERLINE_SEPARATOR=$2;;
+    order)
+      SEQ="newline,$2,lastunit";;
+    vcsorder)
+      VCSSEQ=$2;;
+    colors)
+      COLOR_OVERRIDE=$2;;
+  esac
+}
+
+set_colors() {
+}
+function prompt_pwline_setup {
+# Set Defaults
+  POWERLINE_SEPARATOR=$'\uE0B0'
+  R_POWERLINE_SEPARATOR=$'\uE0B2'
+  SEQ=newline,user,host,vcs,lastunit,newline,time,jobs,pwd,status_prompt,lastunit
+  VCSSEQ=vcstype,branch,revision
+  # FIRST_LEFT=true
+  parse_config $@
+  format_prompt
+}
+
+function zle-line-init zle-keymap-select {
+  format_prompt
+  zle reset-prompt
+}
+
+prompt_pwline_setup "$@"
+
