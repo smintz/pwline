@@ -142,7 +142,7 @@ set_vcs_prompt() {
     case $type in
       vcstype)
         fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false "%s")
-        fmt_action_dyn=$fmt_action_dyn$(unit $type\:left\:false "%s (%a)")
+        fmt_action_dyn=$fmt_action_dyn$(unit $type\:left\:false "%s")$(unit vcsaction\:left\:false "%a")
         ;;
       branch)
         my=$(unit $type\:left\:false "%b%c%u")
@@ -159,7 +159,7 @@ set_vcs_prompt() {
 
   zstyle ':vcs_info:*:prompt:*' patch-format  "%p%u"
   zstyle ':vcs_info:*:prompt:*' actionformats "${fmt_action_dyn}"
-  zstyle ':vcs_info:*:prompt:*' branchformat  "%b"
+  # zstyle ':vcs_info:*:prompt:*' branchformat  "%b"
   zstyle ':vcs_info:*:prompt:*' hgrevformat   "%h"
   zstyle ':vcs_info:*:prompt:*' formats       "${fmt_branch_dyn}"
   zstyle ':vcs_info:*:prompt:*' nvcsformats   ""
@@ -187,6 +187,7 @@ function format_prompt {
   COLOR[jobs]=black,yellow
   COLOR[vcstype]=yellow,white
   COLOR[branch]=black,cyan
+  COLOR[vcsaction]=black,yellow
   COLOR[revision]=white,green
   hostname_color="$(($(hostname | md5sum | od -b | head -1 | cut -d' ' -f4 ) % 14))"
   case $hostname_color in
