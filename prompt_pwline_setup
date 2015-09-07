@@ -53,15 +53,15 @@ function unit {
   text=${@}
   echo -n "%K{$bgcolor}$mysep%F{$fgcolor} $text %k%F{$bgcolor}"
 }
-function runit {
-  POWERLINE_SEPARATOR=$'\uE0B2'
-  local bgcolor=$1
-  shift
-  local fgcolor=$1
-  shift
-  text=${@}
-  echo -n "%F{$bgcolor}$POWERLINE_SEPARATOR%K{$bgcolor}%F{$fgcolor} $text %k%K{$bgcolor}"
-}
+# function runit {
+#   POWERLINE_SEPARATOR=$'\uE0B2'
+#   local bgcolor=$1
+#   shift
+#   local fgcolor=$1
+#   shift
+#   text=${@}
+#   echo -n "%F{$bgcolor}$POWERLINE_SEPARATOR%K{$bgcolor}%F{$fgcolor} $text %k%K{$bgcolor}"
+# }
 
 function prompt_pwline_precmd {
   vcs_info 'prompt'
@@ -130,30 +130,35 @@ set_vcs_prompt() {
   # %n - user
   # %m - machine hostname
 
-  local fmt_branch="(${__PROMPT_SKWP_COLORS[1]}%b%f%u%c)"
-  local fmt_branch="${__PROMPT_SKWP_COLORS[0]}(%s) %b%f%u%c"
-  local fmt_action="${__PROMPT_SKWP_COLORS[5]}%a%f"
   local fmt_unstaged="${__PROMPT_SKWP_COLORS[2]} ●%f"
   local fmt_staged="${__PROMPT_SKWP_COLORS[5]} ●%f"
+  zstyle ':vcs_info:*:prompt:*' unstagedstr   "${fmt_unstaged}"
+  zstyle ':vcs_info:*:prompt:*' stagedstr     "${fmt_staged}"
 
   fmt_branch_dyn=''
+  fmt_action_dyn=''
   for type in $(echo $VCSSEQ | sed 's/,/\ /g'); do
     # echo $type $side
     case $type in
       vcstype)
-        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false %s);;
+        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false "%s")
+        fmt_action_dyn=$fmt_action_dyn$(unit $type\:left\:false "%s (%a)")
+        ;;
       branch)
-        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false %b%c%u);;
+        my=$(unit $type\:left\:false "%b%c%u")
+        fmt_branch_dyn=$fmt_branch_dyn$my
+        fmt_action_dyn=$fmt_action_dyn$my
+        ;;
       revision)
-        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false %i);;
+        my=$(unit $type\:left\:false "%7.7i")
+        fmt_branch_dyn=$fmt_branch_dyn$my
+        fmt_action_dyn=$fmt_action_dyn$my
+        ;;
     esac
   done
-  # echo $fmt_branch_dyn
 
-  zstyle ':vcs_info:*:prompt:*' unstagedstr   "${fmt_unstaged}"
-  zstyle ':vcs_info:*:prompt:*' stagedstr     "${fmt_staged}"
   zstyle ':vcs_info:*:prompt:*' patch-format  "%p%u"
-  zstyle ':vcs_info:*:prompt:*' actionformats "${fmt_branch}${fmt_action}"
+  zstyle ':vcs_info:*:prompt:*' actionformats "${fmt_action_dyn}"
   zstyle ':vcs_info:*:prompt:*' branchformat  "%b"
   zstyle ':vcs_info:*:prompt:*' hgrevformat   "%h"
   zstyle ':vcs_info:*:prompt:*' formats       "${fmt_branch_dyn}"
