@@ -14,7 +14,7 @@ function prompt_pwline_help {
   cat <<EOH
 This powerline prompt is customizable:
 
-  prompt pwline [order:user,host,...] [vcsorder:vcstype,branch] [sep:<seperator char>] [colors:host:blue,white::user:green,white]
+  prompt pwline [order:user,host,...] [vcsorder:vcstype,branch] [sep:<seperator char>] [colors:host:blue,white::user:green,white] [terminal_uniq_color:false]
 
 available units options (for order:...)
   - user            - current user
@@ -83,6 +83,38 @@ function prompt_pwline_precmd {
 #   zle reset-prompt
 # }
 
+function get_vsc_unit {
+  VCS_TYPE=$1
+  ACTION_STATE=$2
+  fmt_branch_dyn=''
+  for type in $(echo $VCSSEQ | sed 's/,/\ /g'); do
+    # echo $type $side
+    case $type in
+      vcstype)
+        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false "%s")
+        if [ ${ACTION_STATE} ]; then
+          fmt_branch_dyn=$fmt_branch_dyn$(unit vcsaction\:left\:false "%a")
+        fi
+        ;;
+      branch)
+        case ${VCS_TYPE} in
+          git)
+            my=$(unit $type\:left\:false "%b%c%u")
+          ;;
+          hg)
+            my=$(unit $type\:left\:false "%(m.%m.%b)%c%u")
+          ;;
+        esac
+        fmt_branch_dyn=$fmt_branch_dyn$my
+        ;;
+      revision)
+        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false "%7.7i")
+        ;;
+    esac
+  done
+  echo ${fmt_branch_dyn}
+}
+
 set_vcs_prompt() {
   echo $1 | sed 's/:/\ /g' | read type side is_first
 
@@ -99,6 +131,12 @@ set_vcs_prompt() {
   zstyle ':vcs_info:*:prompt:*' get-bookmarks true
   zstyle ':vcs_info:*:prompt:*' get-revision true
   zstyle ':vcs_info:*:prompt:*' use-simple true
+
+  zstyle ':vcs_info:hg*:*' get-mq true
+  zstyle ':vcs_info:hg*:*' get-unapplied true
+  zstyle ':vcs_info:hg*:*' patch-format "mq(%g):%n/%c %p"
+  zstyle ':vcs_info:hg*:*' nopatch-format "mq(%g):%n/%c %p"
+
   add-zsh-hook precmd prompt_pwline_precmd
   # Use extended color pallete if available.
   if [[ $TERM = *256color* || $TERM = *rxvt* ]]; then
@@ -135,33 +173,21 @@ set_vcs_prompt() {
   zstyle ':vcs_info:*:prompt:*' unstagedstr   "${fmt_unstaged}"
   zstyle ':vcs_info:*:prompt:*' stagedstr     "${fmt_staged}"
 
-  fmt_branch_dyn=''
-  fmt_action_dyn=''
-  for type in $(echo $VCSSEQ | sed 's/,/\ /g'); do
-    # echo $type $side
-    case $type in
-      vcstype)
-        fmt_branch_dyn=$fmt_branch_dyn$(unit $type\:left\:false "%s")
-        fmt_action_dyn=$fmt_action_dyn$(unit $type\:left\:false "%s")$(unit vcsaction\:left\:false "%a")
-        ;;
-      branch)
-        my=$(unit $type\:left\:false "%b%c%u")
-        fmt_branch_dyn=$fmt_branch_dyn$my
-        fmt_action_dyn=$fmt_action_dyn$my
-        ;;
-      revision)
-        my=$(unit $type\:left\:false "%7.7i")
-        fmt_branch_dyn=$fmt_branch_dyn$my
-        fmt_action_dyn=$fmt_action_dyn$my
-        ;;
-    esac
-  done
+  # fmt_branch_dyn=''
+  # fmt_action_dyn=''
+###############################################
+  git_branch=$(get_vsc_unit git)
+  git_action=$(get_vsc_unit git action)
+  hg_branch=$(get_vsc_unit hg)
+  hg_action=$(get_vsc_unit hg action)
 
   zstyle ':vcs_info:*:prompt:*' patch-format  "%p%u"
-  zstyle ':vcs_info:*:prompt:*' actionformats "${fmt_action_dyn}"
-  # zstyle ':vcs_info:*:prompt:*' branchformat  "%b"
+  zstyle ':vcs_info:git*:prompt:*' actionformats "${git_action}"
+  zstyle ':vcs_info:hg*:prompt:*' actionformats "${hg_action}"
+  zstyle ':vcs_info:*:prompt:*' branchformat  "%b"
   zstyle ':vcs_info:*:prompt:*' hgrevformat   "%h"
-  zstyle ':vcs_info:*:prompt:*' formats       "${fmt_branch_dyn}"
+  zstyle ':vcs_info:git*:prompt:*' formats       "${git_branch}"
+  zstyle ':vcs_info:hg*:prompt:*' formats       "${hg_branch}"
   zstyle ':vcs_info:*:prompt:*' nvcsformats   ""
 
 }
@@ -189,7 +215,16 @@ function format_prompt {
   COLOR[branch]=black,cyan
   COLOR[vcsaction]=black,yellow
   COLOR[revision]=white,green
-  hostname_color="$(($(hostname | md5sum | od -b | head -1 | cut -d' ' -f4 ) % 14))"
+
+  case ${TERM_UNIQ} in
+    true)
+      hostname_color="$(($(echo ${TERM_SESSION_ID}${SSH_TTY}${TMUX_PANE} | md5sum | od -b | head -1 | cut -d' ' -f4 ) % 64))"
+      ;;
+    *)
+      hostname_color="$(($(hostname | md5sum | od -b | head -1 | cut -d' ' -f4 ) % 100))"
+      ;;
+  esac
+
   case $hostname_color in
     8) f_hostname_color=black ;;
     *) f_hostname_color=white ;;
@@ -264,6 +299,8 @@ set_config() {
       VCSSEQ=$2;;
     colors)
       COLOR_OVERRIDE=$2;;
+    terminal_uniq_color)
+      TERM_UNIQ=$2;;
   esac
 }
 
