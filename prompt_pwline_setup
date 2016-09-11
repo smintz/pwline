@@ -102,7 +102,7 @@ function get_vsc_unit {
             my=$(unit $type\:left\:false "%b%c%u")
           ;;
           hg)
-            my=$(unit $type\:left\:false "%(m.%m.%b)%c%u")
+            my=$(unit $type\:left\:false "%m%c%u")
           ;;
         esac
         fmt_branch_dyn=$fmt_branch_dyn$my
