@@ -5,6 +5,8 @@ powerline-like ZSH prompt designed to run on top of [YADR](https://github.com/sk
     $ git clone https://github.com/smintz/pwline ~/.pwline
     $ ln -s ~/.pwline/prompt_pwline_setup ~/.zsh.prompts/prompt_pwline_setup
 
+Fonts can be downloaded from: https://github.com/powerline/fonts/tree/master/Inconsolata
+
 #### Loading
     $ source ~/.zshrc
     $ prompt pwline
